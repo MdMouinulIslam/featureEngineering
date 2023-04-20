@@ -24,31 +24,36 @@ from torch_geometric.utils import to_networkx
 
 def createDataLoader():
     dataset,x_list,y_list = createDataset()
-    x = torch.from_numpy(x_list)
+    x = torch.from_numpy(x_list[0])
     n_features = len(x)
 
-    X_train, X_test, y_train, y_test = train_test_split(pd.Series(x_list),
+    X_train, X_test, y_train, y_test = train_test_split(pd.DataFrame(x_list),
                                                         pd.Series(y_list),
-                                                        test_size=0.30,
+                                                        test_size=0.20,
                                                         random_state=42)
 
 
-    train_mask = torch.zeros(n_features, dtype=torch.bool)
-    test_mask = torch.zeros(n_features, dtype=torch.bool)
-    train_mask[X_train.index] = True
-    test_mask[X_test.index] = True
+    # train_mask = torch.zeros(n_features, dtype=torch.bool)
+    # test_mask = torch.zeros(n_features, dtype=torch.bool)
+    # train_mask[X_train.index] = True
+    # test_mask[X_test.index] = True
+    numrec = len(y_list)
+    maskDf  = pd.DataFrame(np.random.randn(numrec))
+
+    train_mask = np.random.rand(len(maskDf)) < 0.8
+
     dataset.train_mask= train_mask
-    dataset.test_mask = test_mask
-
-
+    dataset.test_mask = ~train_mask
 
     # Create batches with neighbor sampling
     data_loader = NeighborLoader(
         dataset,
-        num_neighbors=[5, 10],
-        batch_size=2,
+        num_neighbors=[10, 10],
+        batch_size=200,
         input_nodes=dataset.train_mask,
     )
+
+    #ydf = pd.Series(y_list)
 
     NUM_VAL = len(X_test)
     NUM_TRAIN = len(X_train)

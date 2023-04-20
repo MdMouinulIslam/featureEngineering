@@ -1,6 +1,6 @@
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import normalized_mutual_info_score,adjusted_mutual_info_score
+from sklearn.metrics import normalized_mutual_info_score, adjusted_mutual_info_score
 import pandas as pd
 import networkx as nx
 import numpy as np
@@ -16,43 +16,28 @@ from torch_geometric.loader import DataLoader
 import random
 from sklearn.model_selection import train_test_split
 
-
 import uci_dataset as dataset
 import itertools
 
-def validFeature(f):
-    if f == "age_gt_60" | f == "speech":
-        return False
-    return True
-
-
-
 
 def getData():
-    fullDataset = dataset.load_audiology()
-    data = fullDataset.sample(frac=0.7, replace=False, random_state=1)
-
+    data = dataset.load_audiology()
+    missingData = data.sample(frac=0.8, replace=False, random_state=1)
 
     intentDictionary = {"age_gt_60": ["f", "t"], "speech": ["normal", "good", "very_good"]}
-    #intentKeys = [intentDictionary.keys()]
+    # intentKeys = [intentDictionary.keys()]
     allComb = list(itertools.product(intentDictionary["age_gt_60"], intentDictionary["speech"]))
 
     allIntentData = {}
-    allIntentDataFull = {}
     for v1, v2 in allComb:
         intentData = data[(data['age_gt_60'] == v1) & (data['speech'] == v2)]
-        intentDatafull = fullDataset[(fullDataset['age_gt_60'] == v1) & (fullDataset['speech'] == v2)]
-
         intentData = intentData.apply(LabelEncoder().fit_transform).dropna()
-        intentDatafull = intentDatafull.apply(LabelEncoder().fit_transform).dropna()
-        #print(v1, v2)
+        # print(v1, v2)
         intentName = ''.join((v1, v2))
         allIntentData[intentName] = intentData
-        allIntentDataFull[intentName] = intentDatafull
 
     features = data.columns[:-1]
-    classLabel = fullDataset.columns[-1:][0]
-
+    classLabel = data.columns[-1:][0]
 
     edge_rows = []
     edge_colNames = ["i", "j", "mi"]
@@ -60,10 +45,6 @@ def getData():
     out_colNames = ["f", "mi"]
     node_rows = []
     node_colNames = ["f", "mi"]
-
-    features = list(features)
-    features.remove("age_gt_60")
-    features.remove("speech")
 
     for intentName, intentData in allIntentData.items():
         for f1 in features:
@@ -77,18 +58,13 @@ def getData():
                 t2 = (f2name, f1name, mi)
                 edge_rows.append(t1)
                 edge_rows.append(t2)
-                    # print(intentData[classLabel])
-            miClass = normalized_mutual_info_score(allIntentDataFull[intentName][f1], allIntentDataFull[intentName][classLabel])
-            miClassMissing  = normalized_mutual_info_score(intentData[f1], intentData[classLabel])
-
+                # print(intentData[classLabel])
+            miClass = normalized_mutual_info_score(intentData[f1], intentData[classLabel])
             f1name = f1 + intentName
             out = (f1name, miClass)
             out_rows.append(out)
-            node = (f1name, miClassMissing)
-
+            node = (f1name, 1)
             node_rows.append(node)
-
-
 
     for f in features:
         mi = 1
@@ -117,13 +93,6 @@ def getData():
     node_df.to_csv("data/node.csv")
 
     return edge_df, out_df, node_df
-
-
-
-
-
-
-
 
 
 def getDataBinary():
@@ -205,5 +174,5 @@ def getDataBinary():
     node_df.to_csv("data/node.csv")
     edge_df = edge_df[edge_df["mi"] > 0.1]
 
-    return edge_df,out_df,node_df
+    return edge_df, out_df, node_df
 

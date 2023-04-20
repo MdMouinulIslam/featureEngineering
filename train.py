@@ -38,19 +38,35 @@ def train(hyperparams):
     for epoch in range(n_epochs):
         epoch_loss_train = 0
         epoch_loss_val = 0
+        epoch_loss_org = 0
         model.train()
+        print("model train")
         for data in data_loader:
-            # print(data)
+            print("epoch = ",epoch)
             optimizer.zero_grad()
             out = model(data)
             loss = F.mse_loss(out[data.train_mask], data.y[data.train_mask])
+
             epoch_loss_train += loss.item()
             loss.backward()
             optimizer.step()
 
             val_loss = F.mse_loss(out[data.test_mask], data.y[data.test_mask])
+            loss_org = F.mse_loss(data.x[data.test_mask],data.y[data.test_mask])
             epoch_loss_val += val_loss.item()
+            epoch_loss_org += loss_org.item()
 
         if epoch % print_interval == 0:
-            print("Epoch: {} Train loss: {:.2e} Validation loss: {:.2e}".format(epoch, epoch_loss_train / NUM_TRAIN,
-                                                                                epoch_loss_val / NUM_VAL))
+            print("Epoch: {} Train loss: {:.2e} Validation loss: {:.2e} Original loss {:.2e}".format(epoch, epoch_loss_train / NUM_TRAIN,
+                                                                                epoch_loss_val / NUM_VAL, epoch_loss_org/NUM_VAL))
+    return model,data_loader
+
+
+def predict(model,data_loader):
+    model.eval()
+    for data in data_loader:
+        out = model(data)
+        loss = F.mse_loss(out[data.test_mask], data.y[data.test_mask])
+        print("loss = ",loss.item())
+
+

@@ -1,6 +1,6 @@
 
 
-from dataCleanup import getData
+from dataCleanup import getData,getDataBinary
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import normalized_mutual_info_score,adjusted_mutual_info_score
@@ -22,7 +22,7 @@ from sklearn.model_selection import train_test_split
 
 def createDataset():
     edge_df,out_df,node_df = getData()
-
+    #getDataBinary();
     edges = pd.read_csv("data/edge.csv")
 
     # generate map from iso_code to ids of form [0, ..., num_unique_iso_codes - 1]
@@ -50,9 +50,17 @@ def createDataset():
     # load in input features
     x_df = pd.read_csv("data/node.csv")
     x_df['id'] = x_df['f'].map(features_to_id)
-    x_df.sort_values("id")
+    #x_df = x_df.sort_values("id")
 
-    x_list = x_df.sort_values("id").loc[:,"id"].to_numpy(np.int64)
+    X1 = x_df.sort_values("id").loc[:, "id"].to_numpy(np.int64)
+    X2 = x_df.sort_values("id").loc[:, "mi"].to_numpy(np.float32)
+
+    out  = []
+    for i in range(0,len(X1)):
+        lst = [X1[i],X2[i]]
+        out.append(lst)
+
+    x_list = np.array(out)
     x = torch.from_numpy(x_list)
 
     dataset = Data(x=x, edge_index=edge_index, edge_attr=edge_attr, y=y)
