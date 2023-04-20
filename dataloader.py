@@ -22,25 +22,13 @@ from torch_geometric.loader import NeighborLoader
 from torch_geometric.utils import to_networkx
 
 
-def createDataLoader():
+def createDataLoader(trainPercent):
     dataset,x_list,y_list = createDataset()
-    x = torch.from_numpy(x_list[0])
-    n_features = len(x)
 
-    X_train, X_test, y_train, y_test = train_test_split(pd.DataFrame(x_list),
-                                                        pd.Series(y_list),
-                                                        test_size=0.20,
-                                                        random_state=42)
-
-
-    # train_mask = torch.zeros(n_features, dtype=torch.bool)
-    # test_mask = torch.zeros(n_features, dtype=torch.bool)
-    # train_mask[X_train.index] = True
-    # test_mask[X_test.index] = True
     numrec = len(y_list)
     maskDf  = pd.DataFrame(np.random.randn(numrec))
 
-    train_mask = np.random.rand(len(maskDf)) < 0.8
+    train_mask = np.random.rand(len(maskDf)) <= trainPercent
 
     dataset.train_mask= train_mask
     dataset.test_mask = ~train_mask
@@ -48,14 +36,18 @@ def createDataLoader():
     # Create batches with neighbor sampling
     data_loader = NeighborLoader(
         dataset,
-        num_neighbors=[10, 10],
+        num_neighbors=[1000, 1000],
         batch_size=200,
         input_nodes=dataset.train_mask,
     )
 
     #ydf = pd.Series(y_list)
+    counter = 0
+    for i in train_mask:
+        if i == False:
+            counter = counter + 1
 
-    NUM_VAL = len(X_test)
-    NUM_TRAIN = len(X_train)
+    NUM_VAL = counter
+    NUM_TRAIN = len(y_list) - counter
 
     return data_loader, NUM_VAL, NUM_TRAIN

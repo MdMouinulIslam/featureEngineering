@@ -20,9 +20,11 @@ import random
 from sklearn.model_selection import train_test_split
 from dataloader import createDataLoader
 from gnnModel import FEModel
+from sklearn.metrics import ndcg_score
+from utils import ranking_precision_score
 
 
-def train(hyperparams):
+def train(data_loader, NUM_VAL, NUM_TRAIN,hyperparams):
     learning_rate = hyperparams['learning_rate']
     batch_size = hyperparams['batch_size']
     n_epochs = hyperparams['n_epochs']
@@ -31,18 +33,13 @@ def train(hyperparams):
     save_model_interval = hyperparams['save_model_interval']
 
     model = FEModel()
-    data_loader, NUM_VAL, NUM_TRAIN = createDataLoader()
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
     losses = []
 
     for epoch in range(n_epochs):
         epoch_loss_train = 0
-        epoch_loss_val = 0
-        epoch_loss_org = 0
         model.train()
-        print("model train")
         for data in data_loader:
-            print("epoch = ",epoch)
             optimizer.zero_grad()
             out = model(data)
             loss = F.mse_loss(out[data.train_mask], data.y[data.train_mask])
@@ -50,23 +47,29 @@ def train(hyperparams):
             epoch_loss_train += loss.item()
             loss.backward()
             optimizer.step()
-
-            val_loss = F.mse_loss(out[data.test_mask], data.y[data.test_mask])
-            loss_org = F.mse_loss(data.x[data.test_mask],data.y[data.test_mask])
-            epoch_loss_val += val_loss.item()
-            epoch_loss_org += loss_org.item()
-
-        if epoch % print_interval == 0:
-            print("Epoch: {} Train loss: {:.2e} Validation loss: {:.2e} Original loss {:.2e}".format(epoch, epoch_loss_train / NUM_TRAIN,
-                                                                                epoch_loss_val / NUM_VAL, epoch_loss_org/NUM_VAL))
-    return model,data_loader
+        print("Epoch: {} Train loss: {:.2e}".format(epoch,epoch_loss_train/NUM_TRAIN))
+    return model
 
 
-def predict(model,data_loader):
+def predict(model,data_loader, NUM_VAL, NUM_TRAIN):
     model.eval()
+    totalLoss = 0
+
+
+    krange = [5,10,20,50,100]
     for data in data_loader:
         out = model(data)
         loss = F.mse_loss(out[data.test_mask], data.y[data.test_mask])
-        print("loss = ",loss.item())
+        totalLoss = totalLoss + loss.item()
+
+        predictedOut = out[data.test_mask].view(1,-1).detach().numpy()
+        trueOut = data.y[data.test_mask].view(1,-1).detach().numpy()
+
+        print(trueOut.dtype)
+        print(trueOut.shape)
+        for k in krange:
+            print("ndcg at ",k ," is =", ndcg_score(trueOut,predictedOut,k=k))
+
+    print("loss = ",totalLoss/NUM_VAL)
 
 

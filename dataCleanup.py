@@ -28,42 +28,46 @@ def validFeature(f):
 
 
 
-def getData():
-    fullDataset = dataset.load_audiology()
-    data = fullDataset.sample(frac=0.7, replace=False, random_state=1)
 
+def cleanData(data,dataname):
 
-    intentDictionary = {"age_gt_60": ["f", "t"], "speech": ["normal", "good", "very_good"]}
-    #intentKeys = [intentDictionary.keys()]
-    allComb = list(itertools.product(intentDictionary["age_gt_60"], intentDictionary["speech"]))
-
+    ValDic ={"f":0,"t":1,"normal":0, "good":1, "very_good":2}
+    allComb = ['f','t']
     allIntentData = {}
-    allIntentDataFull = {}
-    for v1, v2 in allComb:
-        intentData = data[(data['age_gt_60'] == v1) & (data['speech'] == v2)]
-        intentDatafull = fullDataset[(fullDataset['age_gt_60'] == v1) & (fullDataset['speech'] == v2)]
 
-        intentData = intentData.apply(LabelEncoder().fit_transform).dropna()
-        intentDatafull = intentDatafull.apply(LabelEncoder().fit_transform).dropna()
-        #print(v1, v2)
-        intentName = ''.join((v1, v2))
+    for v1 in allComb:
+
+        intentData = data[(data['age_gt_60'] == ValDic[v1])]
+        intentName = v1
         allIntentData[intentName] = intentData
-        allIntentDataFull[intentName] = intentDatafull
+
 
     features = data.columns[:-1]
-    classLabel = fullDataset.columns[-1:][0]
+    classLabel = data.columns[-1:][0]
 
+
+    features = list(features)
+    features.remove("age_gt_60")
+    #features.remove("speech")
 
     edge_rows = []
     edge_colNames = ["i", "j", "mi"]
     out_rows = []
     out_colNames = ["f", "mi"]
     node_rows = []
-    node_colNames = ["f", "mi"]
+    node_colNames = ["f"]
+    node_colNames.extend(features)
 
-    features = list(features)
-    features.remove("age_gt_60")
-    features.remove("speech")
+    # calculate node featues
+    nodeAtt = {}
+    for f1 in features:
+        attValue = []
+        for f2 in features:
+            mi = normalized_mutual_info_score(data[f1], data[f2])
+            attValue.append(mi)
+        nodeAtt[f1] = attValue
+
+
 
     for intentName, intentData in allIntentData.items():
         for f1 in features:
@@ -77,14 +81,17 @@ def getData():
                 t2 = (f2name, f1name, mi)
                 edge_rows.append(t1)
                 edge_rows.append(t2)
-                    # print(intentData[classLabel])
-            miClass = normalized_mutual_info_score(allIntentDataFull[intentName][f1], allIntentDataFull[intentName][classLabel])
-            miClassMissing  = normalized_mutual_info_score(intentData[f1], intentData[classLabel])
+
+
+            miClass  = normalized_mutual_info_score(intentData[f1], intentData[classLabel])
 
             f1name = f1 + intentName
             out = (f1name, miClass)
             out_rows.append(out)
-            node = (f1name, miClassMissing)
+
+            node = [f1name]
+            node.extend(nodeAtt[f1])
+            node = tuple(node)
 
             node_rows.append(node)
 
@@ -106,104 +113,20 @@ def getData():
 
     # filter out mi values less than some filter
     edge_df = edge_df[edge_df["mi"] > 0.1]
-    edge_df.to_csv("data/edge.csv")
+
+
+    edgefile = r"data/"+dataname+"_edge.csv"
+    edge_df.to_csv(edgefile)
 
     out_df = pd.DataFrame(out_rows,
                           columns=out_colNames)
-    out_df.to_csv("data/out.csv")
+    outfile = r"data/"+dataname+"_out.csv"
+    out_df.to_csv(outfile)
 
     node_df = pd.DataFrame(node_rows,
                            columns=node_colNames)
-    node_df.to_csv("data/node.csv")
+    nodefile = r"data/"+dataname+"_node.csv"
+    node_df.to_csv(nodefile)
 
     return edge_df, out_df, node_df
-
-
-
-
-
-
-
-
-
-def getDataBinary():
-    data = dataset.load_audiology()
-    data_g = data[data["age_gt_60"] == "t"]
-    data_l = data[data["age_gt_60"] == "f"]
-    data_g = data_g.apply(LabelEncoder().fit_transform).dropna()
-    data_l = data_l.apply(LabelEncoder().fit_transform).dropna()
-    features_g = data_g.columns[:-1]
-    classLabel_g = data_g.columns[-1:][0]
-    features_l = data_l.columns[:-1]
-    classLabel_l = data_l.columns[-1:][0]
-    edge_rows = []
-    edge_colNames = ["i", "j", "mi"]
-    out_rows = []
-    out_colNames = ["f", "mi"]
-    node_rows = []
-    node_colNames = ["f", "mi"]
-
-    for f1 in features_g:
-        for f2 in features_g:
-            mi = normalized_mutual_info_score(data_g[f1], data_g[f2])
-            if f1 == f2:
-                continue
-            f1g = f1 + "g"
-            f2g = f2 + "g"
-            t1 = (f1g, f2g, mi)
-            t2 = (f2g, f1g, mi)
-            edge_rows.append(t1)
-            edge_rows.append(t2)
-
-        miClass = normalized_mutual_info_score(data_g[f1], data_g[classLabel_g])
-        f1g = f1 + "g"
-        t_out = (f1g, miClass)
-        out_rows.append(t_out)
-
-    for f1 in features_l:
-        for f2 in features_l:
-            if f1 == f2:
-                continue
-            mi = normalized_mutual_info_score(data_l[f1], data_l[f2])
-            f1l = f1 + "l"
-            f2l = f2 + "l"
-            t1 = (f1l, f2l, mi)
-            t2 = (f2l, f1l, mi)
-            edge_rows.append(t1)
-            edge_rows.append(t2)
-
-        miClass = normalized_mutual_info_score(data_l[f1], data_l[classLabel_l])
-        f1l = f1 + "l"
-        t_out = (f1l, miClass)
-        out_rows.append(t_out)
-
-    for f1 in features_l:
-        mi = 1
-        f1l = f1 + "l"
-        f1g = f1 + "g"
-        t1 = (f1l, f1g, mi)
-        t2 = (f1g, f1l, mi)
-        edge_rows.append(t1)
-        edge_rows.append(t2)
-
-    for f in features_g:
-        fl = f + "l"
-        fg = f + "g"
-        rl = (fl, 1)
-        rg = (fg, 1)
-        node_rows.append(rl)
-        node_rows.append(rg)
-
-    edge_df = pd.DataFrame(edge_rows,
-                           columns=edge_colNames)
-    edge_df.to_csv("data/edge.csv")
-    out_df = pd.DataFrame(out_rows,
-                          columns=out_colNames)
-    out_df.to_csv("data/out.csv")
-    node_df = pd.DataFrame(node_rows,
-                           columns=node_colNames)
-    node_df.to_csv("data/node.csv")
-    edge_df = edge_df[edge_df["mi"] > 0.1]
-
-    return edge_df,out_df,node_df
 
