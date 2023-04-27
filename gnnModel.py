@@ -26,9 +26,11 @@ class FEModel(torch.nn.Module):
     def __init__(self, num_features=FEATURE_SIZE, hidden_size=512, target_size=1, num_emb = 1000):
         super().__init__()
         self.hidden_size = hidden_size
-        self.num_features = num_features
+        self.num_features = num_features + 1
         self.target_size = target_size
         self.convs = [GATConv(self.num_features, self.hidden_size, edge_dim=NUM_EDGE_FEATURES),
+                      GATConv(self.hidden_size, self.hidden_size, edge_dim=NUM_EDGE_FEATURES),
+                      GATConv(self.hidden_size, self.hidden_size, edge_dim=NUM_EDGE_FEATURES),
                       GATConv(self.hidden_size, self.hidden_size, edge_dim=NUM_EDGE_FEATURES)]
 
         #self.item_embedding = torch.nn.Embedding(num_embeddings=num_emb, embedding_dim=EMB_SIZE)

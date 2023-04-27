@@ -22,22 +22,22 @@ from torch_geometric.loader import NeighborLoader
 from torch_geometric.utils import to_networkx
 
 
-def createDataLoader(trainPercent):
-    dataset,x_list,y_list = createDataset()
+def createDataLoader(dataset,numRecords,train_mask_df,batchSize):
 
-    numrec = len(y_list)
-    maskDf  = pd.DataFrame(np.random.randn(numrec))
 
-    train_mask = np.random.rand(len(maskDf)) <= trainPercent
 
+    # maskDf  = pd.DataFrame(np.random.randn(numRecords))
+    #
+    # train_mask = np.random.rand(len(maskDf)) <= trainPercent
+    train_mask = np.array(list(train_mask_df['mask_val']))
     dataset.train_mask= train_mask
     dataset.test_mask = ~train_mask
 
     # Create batches with neighbor sampling
     data_loader = NeighborLoader(
         dataset,
-        num_neighbors=[1000, 1000],
-        batch_size=200,
+        num_neighbors=[1000, 1000,1000,1000],
+        batch_size=batchSize,
         input_nodes=dataset.train_mask,
     )
 
@@ -48,6 +48,6 @@ def createDataLoader(trainPercent):
             counter = counter + 1
 
     NUM_VAL = counter
-    NUM_TRAIN = len(y_list) - counter
+    NUM_TRAIN = numRecords - counter
 
     return data_loader, NUM_VAL, NUM_TRAIN

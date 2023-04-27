@@ -24,9 +24,10 @@ from sklearn.preprocessing import LabelEncoder
 
 
 
-def createDataset():
+def createDataset(datasetName):
     #getDataBinary();
-    edges = pd.read_csv("data/train_edge.csv")
+    fileName = r'data/'+ datasetName+'_edge'+ '.csv'
+    edges = pd.read_csv(fileName)
 
     # generate map from iso_code to ids of form [0, ..., num_unique_iso_codes - 1]
     features = set(edges["i"])
@@ -43,7 +44,8 @@ def createDataset():
     edge_attr = (edge_attr - edge_attr.mean(axis=0)) / (edge_attr.std(axis=0))
 
     # load in target values
-    y_df = pd.read_csv("data/train_out.csv ")
+    fileName = r'data/' + datasetName + '_out' + '.csv'
+    y_df = pd.read_csv(fileName)
     y_df['id'] = y_df['f'].map(features_to_id)
 
     y_list = y_df.sort_values('id')["mi"].to_numpy(np.float32)
@@ -51,7 +53,8 @@ def createDataset():
     y = torch.from_numpy(y_list).unsqueeze(1)
 
     # load in input features
-    x_df = pd.read_csv("data/train_node.csv")
+    fileName = r'data/' + datasetName + '_node' + '.csv'
+    x_df = pd.read_csv(fileName)
     x_df['id'] = x_df['f'].map(features_to_id)
 
     x_df = x_df.sort_values("id")
@@ -71,7 +74,11 @@ def createDataset():
 
     dataset = Data(x=x, edge_index=edge_index, edge_attr=edge_attr, y=y)
 
-    return dataset,x_list,y_list
+    fileName = r'data/' + datasetName + '_mask' + '.csv'
+    train_mask_df = pd.read_csv(fileName)
+
+
+    return dataset,len(y_list),train_mask_df
 
 
 
